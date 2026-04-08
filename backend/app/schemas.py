@@ -16,7 +16,7 @@ class PersonAnalytics(BaseModel):
 class AnalyticsResponse(BaseModel):
     people: List[PersonAnalytics]
     total_people: int
-    total_cups_detected: int
+
     suspicious_ids: List[int]
     overall_status: str
     processed_video_path: Optional[str] = None

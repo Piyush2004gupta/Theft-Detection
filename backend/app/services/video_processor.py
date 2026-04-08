@@ -54,7 +54,7 @@ class VideoProcessor:
             result = self.detector.detect_and_track(frame)
             hands = self.hand_detector.detect_hands(frame, person_tracks=result.person_tracks)
             
-            aggregator.update_cup_count(len(result.cup_boxes))
+
 
             # Theft Logic: Check interactions
             self._analyze_theft_triggers(frame, result, hands, aggregator)
@@ -144,15 +144,19 @@ class VideoProcessor:
         person_box: BBox,
         aggregator: AnalyticsAggregator,
     ) -> None:
-        is_suspicious = track_id in aggregator.suspicious_ids
-        color = (0, 0, 255) if is_suspicious else (0, 255, 0)
+        activity = aggregator.get_person_activity(track_id)
+        is_theft = activity == "Theft"
+        color = (0, 0, 255) if is_theft else (0, 255, 0)
         
         state = aggregator.tracks.get(track_id)
         status_text = "Normal"
         if state:
-            if state.moved_away: status_text = "THEFT!!"
-            elif state.object_disappeared: status_text = "Object Missing"
-            elif state.hand_near_object: status_text = "Interacting"
+            if is_theft:
+                status_text = "THEFT!!"
+            elif state.object_disappeared:
+                status_text = "Object Missing"
+            elif state.hand_near_object:
+                status_text = "Interacting"
 
         label = f"ID {track_id} [{status_text}]"
         DetectorService.draw_box(frame, person_box, label, color)

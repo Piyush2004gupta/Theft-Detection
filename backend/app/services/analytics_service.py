@@ -27,7 +27,7 @@ class TrackState:
 class AnalyticsAggregator:
     def __init__(self) -> None:
         self.tracks: Dict[int, TrackState] = {}
-        self.total_cups_detected: int = 0
+
         self.suspicious_ids: Set[int] = set()
 
     def update_track(self, track_id: int, frame_index: int) -> None:
@@ -37,8 +37,7 @@ class AnalyticsAggregator:
             return
         state.last_frame = frame_index
 
-    def update_cup_count(self, cups_seen_in_frame: int) -> None:
-        self.total_cups_detected += max(0, cups_seen_in_frame)
+
 
     def mark_hand_interaction(self, track_id: int, object_pos: BBox) -> None:
         state = self.tracks.get(track_id)
@@ -55,12 +54,33 @@ class AnalyticsAggregator:
         state = self.tracks.get(track_id)
         if state and state.object_disappeared:
             state.moved_away = True
+            self.suspicious_ids.add(track_id)
 
     def vote_activity(self, track_id: int, label: str) -> None:
         state = self.tracks.get(track_id)
         if state is None:
             return
         state.activity_votes.append(label)
+        # Real-time update for suspicious_ids based on votes
+        theft_votes = sum(1 for v in state.activity_votes if v == "Theft")
+        if theft_votes > len(state.activity_votes) / 2 and len(state.activity_votes) > 2:
+            self.suspicious_ids.add(track_id)
+
+    def get_person_activity(self, track_id: int) -> str:
+        state = self.tracks.get(track_id)
+        if not state:
+            return "Normal"
+        
+        # Priority 1: Hand movement logic
+        if state.moved_away:
+            return "Theft"
+        
+        # Priority 2: Votes
+        theft_votes = sum(1 for v in state.activity_votes if v == "Theft")
+        if theft_votes > len(state.activity_votes) / 2 and len(state.activity_votes) > 0:
+            return "Theft"
+        
+        return "Normal"
 
     def increment_holding_cup(self, track_id: int) -> None:
         state = self.tracks.get(track_id)
@@ -106,7 +126,7 @@ class AnalyticsAggregator:
         return AnalyticsResponse(
             people=people,
             total_people=len(people),
-            total_cups_detected=self.total_cups_detected,
+
             suspicious_ids=sorted(self.suspicious_ids),
             overall_status=overall_status,
             processed_video_path=None,

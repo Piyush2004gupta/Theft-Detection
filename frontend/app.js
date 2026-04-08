@@ -11,7 +11,7 @@ const statusBox = document.getElementById('status');
 
 const overallStatus = document.getElementById('overall-status');
 const totalPeople = document.getElementById('total-people');
-const totalCups = document.getElementById('total-cups');
+
 const suspiciousIds = document.getElementById('suspicious-ids');
 const rawJson = document.getElementById('raw-json');
 
@@ -95,7 +95,7 @@ form.addEventListener('submit', async (event) => {
     }
 
     totalPeople.textContent = data.total_people ?? 0;
-    totalCups.textContent = data.total_cups_detected ?? 0;
+
     suspiciousIds.textContent = JSON.stringify(data.suspicious_ids ?? []);
     setOverallBadge(data.overall_status ?? 'N/A');
 

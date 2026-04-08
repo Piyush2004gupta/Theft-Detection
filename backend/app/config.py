@@ -47,9 +47,9 @@ class Settings:
     # -----------------------------------------------------------------------
     # Theft Detection Thresholds
     # -----------------------------------------------------------------------
-    hand_object_overlap_threshold: float = float(os.getenv("THEFT_HAND_OVERLAP", "0.3"))
-    object_disappeared_threshold: float = float(os.getenv("THEFT_OBJ_MISSING_DIST", "50.0"))
-    move_away_threshold: float = float(os.getenv("THEFT_MOVE_AWAY_DIST", "100.0"))
+    hand_object_overlap_threshold: float = float(os.getenv("THEFT_HAND_OVERLAP", "0.15"))
+    object_disappeared_threshold: float = float(os.getenv("THEFT_OBJ_MISSING_DIST", "80.0"))
+    move_away_threshold: float = float(os.getenv("THEFT_MOVE_AWAY_DIST", "120.0"))
 
     # -----------------------------------------------------------------------
     # DeepSORT Settings
