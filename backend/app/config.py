@@ -54,8 +54,9 @@ class Settings:
     # -----------------------------------------------------------------------
     # DeepSORT Settings
     # -----------------------------------------------------------------------
-    max_age: int = int(os.getenv("THEFT_MAX_AGE", "30"))
-    n_init: int = int(os.getenv("THEFT_N_INIT", "3"))
+    max_age: int = int(os.getenv("THEFT_MAX_AGE", "100"))
+    n_init: int = int(os.getenv("THEFT_N_INIT", "5"))
+
     max_cosine_distance: float = float(os.getenv("THEFT_MAX_COS_DIST", "0.2"))
 
     # -----------------------------------------------------------------------

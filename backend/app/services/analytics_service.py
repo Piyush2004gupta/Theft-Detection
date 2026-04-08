@@ -96,6 +96,10 @@ class AnalyticsAggregator:
             out_seconds = frame_to_seconds(state.last_frame, fps)
             total_seconds = max(0, out_seconds - in_seconds)
 
+            # Filter out noise: if person appeared for < 2 seconds, ignore
+            if total_seconds < 2.0:
+                continue
+
             # Refined Logic Trigger
             is_theft = False
             if state.hand_near_object and state.object_disappeared and state.moved_away:
