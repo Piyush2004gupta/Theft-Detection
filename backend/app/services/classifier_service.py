@@ -19,26 +19,41 @@ class BehaviorClassifierService:
 
     def _load_model(self, model_path: Path) -> None:
         if not model_path.exists():
+            print(f"Warning: Model path {model_path} does not exist.")
             self.model = None
             return
 
         try:
-            scripted_model = torch.jit.load(str(model_path), map_location=self.device)
-            scripted_model.eval()
-            self.model = scripted_model
-            return
-        except Exception:
-            pass
+            # Try loading as Torch scripted model
+            try:
+                scripted_model = torch.jit.load(str(model_path), map_location=self.device)
+                scripted_model.eval()
+                self.model = scripted_model
+                print(f"Successfully loaded TorchScript model from {model_path}")
+                return
+            except Exception:
+                pass
 
-        loaded = torch.load(str(model_path), map_location=self.device)
-        if isinstance(loaded, torch.nn.Module):
-            loaded.eval()
-            self.model = loaded
-        elif isinstance(loaded, dict) and "model" in loaded and isinstance(loaded["model"], torch.nn.Module):
-            model = loaded["model"]
-            model.eval()
-            self.model = model
-        else:
+            # Try loading as standard Torch model
+            loaded = torch.load(str(model_path), map_location=self.device)
+            if isinstance(loaded, torch.nn.Module):
+                loaded.eval()
+                self.model = loaded
+            elif isinstance(loaded, dict) and "model" in loaded and isinstance(loaded["model"], torch.nn.Module):
+                model = loaded["model"]
+                model.eval()
+                self.model = model
+            else:
+                self.model = None
+            
+            if self.model:
+                print(f"Successfully loaded PyTorch model from {model_path}")
+            else:
+                print(f"Warning: Loaded object from {model_path} is not a valid Torch model.")
+
+        except Exception as e:
+            print(f"Error loading model from {model_path}: {e}")
+            print("The backend will start, but behavior classification will be disabled.")
             self.model = None
 
     def classify_crop(self, crop: np.ndarray) -> str:
