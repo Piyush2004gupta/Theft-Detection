@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Theft Detection – AI Video Analytics</title>
+    <meta name="description" content="Upload CCTV footage and detect suspicious theft behaviour using AI-powered YOLOv8 tracking and behaviour classification." />
+    <link rel="stylesheet" href="styles.css" />
+
+    <!--
+      Optional: override the backend URL by setting window.THEFT_API_BASE
+      before app.js loads, e.g.:
+        <script>window.THEFT_API_BASE = 'https://api.myserver.com';</script>
+      Default: http://localhost:8000
+    -->
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <h1>🔍 Theft Detection</h1>
+        <p>Upload CCTV footage to detect suspicious behaviour and identify persons of interest.</p>
+      </header>
+
+      <main class="grid">
+        <!-- Upload card -->
+        <section class="card">
+          <h2>Upload Video</h2>
+          <form id="analyze-form">
+            <label class="file-label" for="video-input">Choose video</label>
+            <input id="video-input" type="file" accept="video/*" required />
+
+            <label class="toggle">
+              <input id="save-video" type="checkbox" checked />
+              <span>Save processed video</span>
+            </label>
+
+            <button id="submit-btn" type="submit">Analyze</button>
+          </form>
+
+          <div id="status" class="status idle">Waiting for upload…</div>
+        </section>
+
+        <!-- Summary card -->
+        <section class="card">
+          <div class="summary-head">
+            <h2>Summary</h2>
+            <span id="overall-status" class="badge neutral">N/A</span>
+          </div>
+          <div class="stats">
+            <div><strong>Total People:</strong> <span id="total-people">0</span></div>
+            <div><strong>Total Cups Detected:</strong> <span id="total-cups">0</span></div>
+            <div><strong>Suspicious IDs:</strong> <span id="suspicious-ids">[]</span></div>
+          </div>
+          <pre id="raw-json" class="json-box">No data yet.</pre>
+        </section>
+
+        <!-- People analytics table -->
+        <section class="card span-2">
+          <h2>People Analytics</h2>
+          <div class="table-wrap">
+            <table id="people-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>In Time</th>
+                  <th>Out Time</th>
+                  <th>Time Spent (s)</th>
+                  <th>Activity</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colspan="5" class="empty">No analytics yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Processed video -->
+        <section class="card span-2">
+          <h2>Processed Video</h2>
+          <video id="result-video" controls preload="metadata"></video>
+          <a id="download-link" class="download" href="#" hidden>Download processed video</a>
+        </section>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
