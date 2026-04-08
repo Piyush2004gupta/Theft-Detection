@@ -14,6 +14,9 @@ from app.services.classifier_service import BehaviorClassifierService
 from app.services.detector_service import DetectorService
 
 
+from app.services.hand_detector_service import HandDetectorService
+
+
 BBox = Tuple[int, int, int, int]
 
 
@@ -22,6 +25,7 @@ class VideoProcessor:
         self.settings = settings
         self.detector = DetectorService(settings=settings)
         self.classifier = BehaviorClassifierService(settings=settings)
+        self.hand_detector = HandDetectorService()
 
     def process_video(self, video_path: Path, save_video: bool = True) -> AnalyticsResponse:
         capture = cv2.VideoCapture(str(video_path))
@@ -48,7 +52,12 @@ class VideoProcessor:
 
             frame_index += 1
             result = self.detector.detect_and_track(frame)
+            hands = self.hand_detector.detect_hands(frame, person_tracks=result.person_tracks)
+            
             aggregator.update_cup_count(len(result.cup_boxes))
+
+            # Theft Logic: Check interactions
+            self._analyze_theft_triggers(frame, result, hands, aggregator)
 
             for track_id, person_box in result.person_tracks:
                 aggregator.update_track(track_id, frame_index)
@@ -58,28 +67,75 @@ class VideoProcessor:
 
                 if frame_index % max(1, self.settings.classify_every_n_frames) == 0:
                     crop = self._safe_crop(frame, person_box)
-                    label = self.classifier.classify_crop(crop)
-                    aggregator.vote_activity(track_id, label)
+                    if crop.size > 0:
+                        label = self.classifier.classify_crop(crop)
+                        aggregator.vote_activity(track_id, label)
 
                 if writer is not None:
                     self._draw_person_annotation(frame, track_id, person_box, aggregator)
 
             if writer is not None:
                 for cup_box in result.cup_boxes:
-                    DetectorService.draw_box(frame, cup_box, "Cup", (0, 255, 255), thickness=2)
+                    DetectorService.draw_box(frame, cup_box, "Cup", (0, 255, 255), thickness=1)
+                for hand in hands:
+                    DetectorService.draw_box(frame, hand.bbox, "Hand", (255, 0, 255), thickness=1)
                 writer.write(frame)
 
         capture.release()
         if writer is not None:
             writer.release()
+        self.hand_detector.close()
 
         response = aggregator.finalize(fps=fps)
         if output_path is not None:
             if output_path.exists():
                 response.processed_video_path = output_path.name
-            else:
-                print(f"Warning: Output video file not created at {output_path}")
         return response
+
+    def _analyze_theft_triggers(self, frame, result, hands, aggregator):
+        for track_id, person_box in result.person_tracks:
+            # 1. Hand + Object Interaction
+            for hand in hands:
+                # If hand belongs to this person track
+                if self._box_overlap(hand.bbox, person_box) > 0.4:
+                    for cup_box in result.cup_boxes:
+                        if self._box_overlap(hand.bbox, cup_box) > self.settings.hand_object_overlap_threshold:
+                            aggregator.mark_hand_interaction(track_id, cup_box)
+            
+            # 2. Object Disappeared
+            state = aggregator.tracks.get(track_id)
+            if state and state.hand_near_object and state.last_known_object_pos and not state.object_disappeared:
+                obj_still_there = False
+                for cup_box in result.cup_boxes:
+                    if self._dist(self._center(cup_box), self._center(state.last_known_object_pos)) < self.settings.object_disappeared_threshold:
+                        obj_still_there = True
+                        break
+                if not obj_still_there:
+                    aggregator.mark_object_disappeared(track_id)
+            
+            # 3. Person Moves Away
+            if state and state.object_disappeared and state.last_known_object_pos:
+                dist_from_spot = self._dist(self._center(person_box), self._center(state.last_known_object_pos))
+                if dist_from_spot > self.settings.move_away_threshold:
+                    aggregator.mark_moved_away(track_id)
+
+    @staticmethod
+    def _dist(p1, p2):
+        return ((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)**0.5
+
+    @staticmethod
+    def _center(box):
+        return ((box[0] + box[2]) / 2.0, (box[1] + box[3]) / 2.0)
+
+    def _box_overlap(self, box1, box2):
+        x1 = max(box1[0], box2[0])
+        y1 = max(box1[1], box2[1])
+        x2 = min(box1[2], box2[2])
+        y2 = min(box1[3], box2[3])
+        if x2 <= x1 or y2 <= y1: return 0.0
+        inter = (float(x2) - x1) * (y2 - y1)
+        area1 = (float(box1[2]) - box1[0]) * (box1[3] - box1[1])
+        return inter / area1 if area1 > 0 else 0
 
     def _draw_person_annotation(
         self,
@@ -90,7 +146,15 @@ class VideoProcessor:
     ) -> None:
         is_suspicious = track_id in aggregator.suspicious_ids
         color = (0, 0, 255) if is_suspicious else (0, 255, 0)
-        label = f"ID {track_id} {'Theft' if is_suspicious else 'Normal'}"
+        
+        state = aggregator.tracks.get(track_id)
+        status_text = "Normal"
+        if state:
+            if state.moved_away: status_text = "THEFT!!"
+            elif state.object_disappeared: status_text = "Object Missing"
+            elif state.hand_near_object: status_text = "Interacting"
+
+        label = f"ID {track_id} [{status_text}]"
         DetectorService.draw_box(frame, person_box, label, color)
 
     @staticmethod

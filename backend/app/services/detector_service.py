@@ -9,6 +9,11 @@ from ultralytics import YOLO
 
 from app.config import Settings
 
+try:
+    from deep_sort_realtime.deepsort_tracker import DeepSort
+except ImportError:
+    DeepSort = None
+
 
 BBox = Tuple[int, int, int, int]
 
@@ -23,13 +28,21 @@ class DetectorService:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self.model = YOLO(settings.yolo_model)
+        if DeepSort:
+            self.tracker = DeepSort(
+                max_age=settings.max_age,
+                n_init=settings.n_init,
+                max_cosine_distance=settings.max_cosine_distance,
+            )
+        else:
+            self.tracker = None
+            print("Warning: deep-sort-realtime not installed. Tracking will be limited.")
 
     def detect_and_track(self, frame: np.ndarray) -> DetectionFrameResult:
-        results = self.model.track(
+        # Use predict instead of track for manual DeepSORT integration
+        results = self.model.predict(
             source=frame,
-            persist=True,
             conf=self.settings.yolo_conf,
-            tracker=self.settings.tracker_cfg,
             verbose=False,
         )
 
@@ -38,29 +51,49 @@ class DetectorService:
 
         result = results[0]
         boxes = result.boxes
-        if boxes is None or boxes.xyxy is None or len(boxes.xyxy) == 0:
+        if boxes is None:
             return DetectionFrameResult(person_tracks=[], cup_boxes=[])
 
-        xyxy = boxes.xyxy.cpu().numpy().astype(int)
+        xyxy = boxes.xyxy.cpu().numpy()
         cls = boxes.cls.cpu().numpy().astype(int) if boxes.cls is not None else np.array([], dtype=int)
-        track_ids = boxes.id.cpu().numpy().astype(int) if boxes.id is not None else np.full(len(xyxy), -1, dtype=int)
+        conf = boxes.conf.cpu().numpy() if boxes.conf is not None else np.ones(len(xyxy))
 
-        person_tracks: List[tuple[int, BBox]] = []
+        person_detections = []
         cup_boxes: List[BBox] = []
 
         for idx, box in enumerate(xyxy):
-            class_id = int(cls[idx]) if idx < len(cls) else -1
+            class_id = int(cls[idx])
             x1, y1, x2, y2 = map(int, box.tolist())
-            x1 = max(0, x1)
-            y1 = max(0, y1)
-            x2 = max(x1 + 1, x2)
-            y2 = max(y1 + 1, y2)
             current_box: BBox = (x1, y1, x2, y2)
 
-            if class_id == self.settings.person_class_id and idx < len(track_ids) and track_ids[idx] >= 0:
-                person_tracks.append((int(track_ids[idx]), current_box))
+            if class_id == self.settings.person_class_id:
+                # DeepSORT expects [left, top, w, h]
+                person_detections.append(([x1, y1, x2 - x1, y2 - y1], conf[idx], class_id))
             elif class_id == self.settings.cup_class_id:
                 cup_boxes.append(current_box)
+
+        person_tracks: List[tuple[int, BBox]] = []
+        if self.tracker:
+            tracks = self.tracker.update_tracks(person_detections, frame=frame)
+            for track in tracks:
+                if not track.is_confirmed():
+                    continue
+                track_id = track.track_id
+                # Track IDs are strings in deep-sort-realtime, try to make it int if it's numeric
+                try:
+                    track_id_int = int(track_id)
+                except ValueError:
+                    # hash it if not numeric
+                    track_id_int = hash(track_id) % 10000
+                
+                ltrb = track.to_ltrb() # x1, y1, x2, y2
+                person_tracks.append((track_id_int, tuple(map(int, ltrb))))
+        else:
+            # Fallback: just return detections as untracked (id -1)
+            for det in person_detections:
+                bbox_xywh, _, _ = det
+                x, y, w, h = bbox_xywh
+                person_tracks.append((-1, (int(x), int(y), int(x + w), int(y + h))))
 
         return DetectionFrameResult(person_tracks=person_tracks, cup_boxes=cup_boxes)
 

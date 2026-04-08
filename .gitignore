@@ -24,12 +24,13 @@ ENV/
 *.env.local
 
 # ---------- Model weights (large binary files) ----------
-# Uncomment these lines if you do NOT want to track model weights in Git.
-# Use Git LFS (https://git-lfs.com) for large files instead.
-# backend/models/*.keras
-# backend/models/*.pth
-# backend/models/*.pt
-# backend/yolov8n.pt
+backend/models/*.keras
+backend/models/*.pth
+backend/models/*.pt
+backend/models/*.task
+backend/yolov8n.pt
+*.pt
+*.task
 
 # ---------- Outputs / uploads ----------
 backend/outputs/

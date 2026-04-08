@@ -7,3 +7,7 @@ torch>=2.2.0
 torchvision>=0.17.0
 numpy>=1.26.0
 pydantic>=2.7.0
+keras>=3.0.0
+tensorflow-cpu
+mediapipe
+deep-sort-realtime

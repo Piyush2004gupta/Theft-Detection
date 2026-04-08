@@ -45,6 +45,20 @@ class Settings:
     ])
 
     # -----------------------------------------------------------------------
+    # Theft Detection Thresholds
+    # -----------------------------------------------------------------------
+    hand_object_overlap_threshold: float = float(os.getenv("THEFT_HAND_OVERLAP", "0.3"))
+    object_disappeared_threshold: float = float(os.getenv("THEFT_OBJ_MISSING_DIST", "50.0"))
+    move_away_threshold: float = float(os.getenv("THEFT_MOVE_AWAY_DIST", "100.0"))
+
+    # -----------------------------------------------------------------------
+    # DeepSORT Settings
+    # -----------------------------------------------------------------------
+    max_age: int = int(os.getenv("THEFT_MAX_AGE", "30"))
+    n_init: int = int(os.getenv("THEFT_N_INIT", "3"))
+    max_cosine_distance: float = float(os.getenv("THEFT_MAX_COS_DIST", "0.2"))
+
+    # -----------------------------------------------------------------------
     # Resolved paths
     # -----------------------------------------------------------------------
     @property
