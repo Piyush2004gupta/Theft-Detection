@@ -78,8 +78,36 @@ class VideoProcessor:
                 for cup_box in result.cup_boxes:
                     DetectorService.draw_box(frame, cup_box, "Cup", (0, 255, 255), thickness=1)
                 for hand in hands:
-                    DetectorService.draw_box(frame, hand.bbox, "Hand", (255, 0, 255), thickness=1)
+                    if hand.landmarks:
+                        self._draw_hand_landmarks(frame, hand.landmarks)
+                    else:
+                        DetectorService.draw_box(frame, hand.bbox, "Hand", (255, 0, 255), thickness=1)
                 writer.write(frame)
+
+    def _draw_hand_landmarks(self, frame: np.ndarray, landmarks: list[tuple[float, float, float]]) -> None:
+        h, w = frame.shape[:2]
+        # Connections for MediaPipe Hands
+        connections = [
+            (0, 1), (1, 2), (2, 3), (3, 4),      # Thumb
+            (0, 5), (5, 6), (6, 7), (7, 8),      # Index
+            (5, 9), (9, 10), (10, 11), (11, 12), # Middle
+            (9, 13), (13, 14), (14, 15), (15, 16), # Ring
+            (13, 17), (0, 17), (17, 18), (18, 19), (19, 20) # Pinky
+        ]
+        
+        # Color palette for "Luxius" feel: Sleek Neon Pink/Cyan
+        joint_color = (0, 255, 255) # Cyan joints
+        line_color = (180, 105, 255) # Pinkish-purple lines
+        
+        points = []
+        for lm in landmarks:
+            px, py = int(lm[0] * w), int(lm[1] * h)
+            points.append((px, py))
+            cv2.circle(frame, (px, py), 3, joint_color, -1)
+
+        for connection in connections:
+            p1, p2 = points[connection[0]], points[connection[1]]
+            cv2.line(frame, p1, p2, line_color, 2)
 
         capture.release()
         if writer is not None:

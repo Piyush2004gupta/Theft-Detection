@@ -63,9 +63,9 @@ class HandDetectorService:
                     base_options=BaseOptions(model_asset_path=task_model),
                     running_mode=RunningMode.IMAGE,
                     num_hands=4,
-                    min_hand_detection_confidence=0.5,
-                    min_hand_presence_confidence=0.5,
-                    min_tracking_confidence=0.5,
+                    min_hand_detection_confidence=0.35,
+                    min_hand_presence_confidence=0.35,
+                    min_tracking_confidence=0.35,
                 )
                 self._landmarker = HandLandmarker.create_from_options(options)
                 print("Successfully initialized MediaPipe Hands (Tasks API).")
