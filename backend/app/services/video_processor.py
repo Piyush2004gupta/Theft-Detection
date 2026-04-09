@@ -84,6 +84,17 @@ class VideoProcessor:
                         DetectorService.draw_box(frame, hand.bbox, "Hand", (255, 0, 255), thickness=1)
                 writer.write(frame)
 
+        capture.release()
+        if writer is not None:
+            writer.release()
+        self.hand_detector.close()
+
+        response = aggregator.finalize(fps=fps)
+        if output_path is not None:
+            if output_path.exists():
+                response.processed_video_path = output_path.name
+        return response
+
     def _draw_hand_landmarks(self, frame: np.ndarray, landmarks: list[tuple[float, float, float]]) -> None:
         h, w = frame.shape[:2]
         # Connections for MediaPipe Hands
@@ -108,17 +119,6 @@ class VideoProcessor:
         for connection in connections:
             p1, p2 = points[connection[0]], points[connection[1]]
             cv2.line(frame, p1, p2, line_color, 2)
-
-        capture.release()
-        if writer is not None:
-            writer.release()
-        self.hand_detector.close()
-
-        response = aggregator.finalize(fps=fps)
-        if output_path is not None:
-            if output_path.exists():
-                response.processed_video_path = output_path.name
-        return response
 
     def _analyze_theft_triggers(self, frame, result, hands, aggregator):
         for track_id, person_box in result.person_tracks:

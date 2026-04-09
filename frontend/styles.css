@@ -1,28 +1,46 @@
 :root {
-  --bg: #0b1020;
-  --card: #141b34;
-  --accent: #5a8bff;
-  --text: #e8eeff;
-  --muted: #a8b3d9;
-  --danger: #ff4d6d;
-  --ok: #45c486;
-  --warning: #ffb347;
+  --bg: #05070a;
+  --card-bg: rgba(17, 25, 40, 0.75);
+  --card-border: rgba(255, 255, 255, 0.1);
+  --accent: #00d2ff;
+  --accent-glow: rgba(0, 210, 255, 0.3);
+  --text: #f0f2f5;
+  --muted: #94a3b8;
+  --danger: #ef4444;
+  --ok: #10b981;
+  --warning: #f59e0b;
 }
 
 * {
   box-sizing: border-box;
-}
-
-html {
-  font-size: clamp(14px, 0.35vw + 13px, 18px);
+  -webkit-font-smoothing: antialiased;
 }
 
 body {
   margin: 0;
-  font-family: Segoe UI, Arial, sans-serif;
-  background: radial-gradient(circle at top, #111a3a, var(--bg));
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--bg);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(0, 210, 255, 0.07) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(180, 105, 255, 0.07) 0px, transparent 50%);
   color: var(--text);
   min-height: 100vh;
+  line-height: 1.5;
+  position: relative;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: url("https://www.transparenttextures.com/patterns/cubes.png");
+  opacity: 0.03;
+  pointer-events: none;
+  z-index: -1;
 }
 
 .app-shell {
@@ -33,14 +51,19 @@ body {
 
 .topbar h1 {
   margin: 0;
-  font-size: clamp(1.4rem, 2vw + 0.8rem, 2.25rem);
-  line-height: 1.2;
+  font-size: clamp(1.4rem, 2vw + 1.2rem, 2.5rem);
+  font-weight: 800;
+  letter-spacing: -1px;
 }
 
-.topbar p {
-  margin-top: 0.5rem;
-  font-size: clamp(0.92rem, 0.25vw + 0.86rem, 1.05rem);
-  color: var(--muted);
+.logo-icon {
+  margin-right: 8px;
+  filter: drop-shadow(0 0 10px var(--accent));
+}
+
+.accent-text {
+  color: var(--accent);
+  text-shadow: 0 0 15px var(--accent-glow);
 }
 
 .grid {
@@ -51,12 +74,18 @@ body {
 }
 
 .card {
-  background: rgba(20, 27, 52, 0.95);
-  border: 1px solid #28345e;
-  border-radius: 12px;
-  padding: clamp(12px, 1.5vw, 18px);
-  min-width: 0;
-  overflow: hidden;
+  background: var(--card-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.card:hover {
+  border-color: rgba(0, 210, 255, 0.3);
 }
 
 .span-2 {
@@ -90,16 +119,31 @@ button,
 
 button {
   background: var(--accent);
-  border-color: transparent;
-  font-weight: 700;
-  min-height: 42px;
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 15px var(--accent-glow);
 }
 
-input[type="file"] {
-  display: block;
-  width: 100%;
-  margin: 0.75rem 0;
-  color: var(--muted);
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 25px var(--accent-glow);
+  filter: brightness(1.1);
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+button:disabled {
+  background: #334155;
+  color: #94a3b8;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 #analyze-form {
@@ -139,16 +183,28 @@ input[type="file"] {
 }
 
 .badge {
-  border-radius: 999px;
-  padding: 0.32rem 0.7rem;
-  font-size: 0.8rem;
-  font-weight: 700;
-  white-space: nowrap;
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.badge.neutral { background: #2c3768; color: var(--muted); }
-.badge.normal { background: #12482d; color: #95efba; }
-.badge.theft { background: #4d1725; color: #ffa0b2; }
+.badge.neutral { background: #334155; color: #f8fafc; }
+.badge.normal { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
+.badge.theft { 
+  background: rgba(239, 68, 68, 0.2); 
+  color: #ef4444; 
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
 
 .stats {
   display: grid;

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import time
 from uuid import uuid4
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
@@ -22,7 +23,7 @@ app = FastAPI(
 # ---------------------------------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -62,8 +63,14 @@ async def analyze_video(
         response = processor.process_video(video_path=input_path, save_video=save_video)
         return response
     finally:
+        # Robust cleanup for Windows (avoids PermissionError if handle is still briefly held)
         if input_path.exists():
-            input_path.unlink(missing_ok=True)
+            for _ in range(5):
+                try:
+                    input_path.unlink(missing_ok=True)
+                    break
+                except PermissionError:
+                    time.sleep(0.5)
 
 
 @app.get("/processed/{filename}", tags=["Media"])

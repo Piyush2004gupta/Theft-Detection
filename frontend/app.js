@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // API base URL – change this if your backend runs on a different host/port
 // ---------------------------------------------------------------------------
-const API_BASE = window.THEFT_API_BASE || 'http://localhost:8000';
+const API_BASE = window.THEFT_API_BASE || `http://${window.location.hostname}:8000`;
 
 const form = document.getElementById('analyze-form');
 const videoInput = document.getElementById('video-input');
@@ -83,7 +83,9 @@ form.addEventListener('submit', async (event) => {
   setStatus(`Analyzing "${file.name}"… this can take some time.`, 'loading');
 
   try {
-    const response = await fetch(`${API_BASE}/analyze?save_video=${saveVideo}`, {
+    const url = `${API_BASE}/analyze?save_video=${saveVideo}`;
+    console.log(`Sending request to: ${url}`);
+    const response = await fetch(url, {
       method: 'POST',
       body: formData,
     });
@@ -95,7 +97,6 @@ form.addEventListener('submit', async (event) => {
     }
 
     totalPeople.textContent = data.total_people ?? 0;
-
     suspiciousIds.textContent = JSON.stringify(data.suspicious_ids ?? []);
     setOverallBadge(data.overall_status ?? 'N/A');
 
@@ -109,7 +110,8 @@ form.addEventListener('submit', async (event) => {
     }
     rawJson.textContent = JSON.stringify(data, null, 2);
   } catch (error) {
-    setStatus(`Error: ${error.message}`, 'error');
+    console.error('Fetch error details:', error);
+    setStatus(`Error: ${error.message}. Check browser console for details.`, 'error');
   } finally {
     submitBtn.disabled = false;
   }
