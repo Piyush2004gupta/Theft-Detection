@@ -24,8 +24,20 @@ class Settings:
     # -----------------------------------------------------------------------
     # Detection class IDs (COCO)
     # -----------------------------------------------------------------------
-    person_class_id: int = int(os.getenv("THEFT_PERSON_CLASS_ID", "0"))
-    cup_class_id: int = int(os.getenv("THEFT_CUP_CLASS_ID", "41"))
+    person_class_id: int = 0
+    theft_object_class_ids: List[int] = field(default_factory=lambda: [
+        24, # backpack
+        26, # handbag
+        28, # suitcase
+        39, # bottle
+        41, # cup
+        63, # laptop
+        64, # mouse
+        65, # remote
+        66, # keyboard
+        67, # cell phone
+        73, # book
+    ])
 
     # -----------------------------------------------------------------------
     # Inference settings

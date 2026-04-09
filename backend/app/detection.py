@@ -12,11 +12,11 @@ class DetectionResult:
     track_id: int = -1
 
 class Detector:
-    def __init__(self, model_path: str = "yolov8n.pt", conf: float = 0.25):
+    def __init__(self, model_path: str = "yolov8n.pt", conf: float = 0.25, valuable_classes: List[int] = None):
         self.model = YOLO(model_path)
         self.conf = conf
         self.person_class = 0
-        self.valuable_classes = [41, 63, 67, 73]  # cup, laptop, cell phone, book (extendable)
+        self.valuable_classes = valuable_classes or [41, 63, 67, 73]
 
     def detect_and_track(self, frame: np.ndarray) -> Tuple[List[DetectionResult], List[DetectionResult]]:
         results = self.model.track(frame, persist=True, conf=self.conf, verbose=False)

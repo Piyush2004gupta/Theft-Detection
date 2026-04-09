@@ -4,15 +4,22 @@ import numpy as np
 import time
 from pathlib import Path
 from typing import Optional
-from app.detection import Detector
+from app.detection import Detector, DetectionResult
 from app.hand_tracking import HandTracker
 from app.behavior_logic import BehaviorAnalyzer
+from app.services.classifier_service import BehaviorClassifierService
+from app.config import settings
 
 class AdvancedVideoPipeline:
-    def __init__(self, model_dir: str = "models"):
-        self.detector = Detector()
-        self.hand_tracker = HandTracker(model_path=f"{model_dir}/hand_landmarker.task")
+    def __init__(self, model_dir: Optional[str] = None):
+        # Use absolute path to the models directory relative to this file
+        base_dir = Path(__file__).parent.parent
+        self.hand_model_path = base_dir / "models" / "hand_landmarker.task"
+        
+        self.detector = Detector(valuable_classes=settings.theft_object_class_ids)
+        self.hand_tracker = HandTracker(model_path=str(self.hand_model_path))
         self.analyzer = BehaviorAnalyzer()
+        self.classifier = BehaviorClassifierService(settings)
         self.events = []
 
     def process_frame(self, frame: np.ndarray, frame_idx: int):
@@ -20,13 +27,25 @@ class AdvancedVideoPipeline:
         people, objects = self.detector.detect_and_track(frame)
         
         # 2. Track Hands
-        hands = self.hand_tracker.get_landmarks(frame)
+        hand_results = self.hand_tracker.get_landmarks(frame)
         
-        # 3. Analyze Behavior
-        behaviors = self.analyzer.analyze(frame_idx, people, objects, hands)
+        # 3. Behavior Classification (Model-based)
+        h, w = frame.shape[:2]
+        person_behaviors = {}
+        for p in people:
+            x1, y1, x2, y2 = p.box
+            crop = frame[max(0, y1):min(h, y2), max(0, x1):min(w, x2)]
+            if crop.size > 0:
+                # Classify every N frames to save compute
+                if frame_idx % settings.classify_every_n_frames == 0:
+                    behavior = self.classifier.classify_crop(crop)
+                    person_behaviors[p.track_id] = behavior
+
+        # 4. Analyze Behavior (Heuristic + Model)
+        behaviors = self.analyzer.analyze(frame_idx, people, objects, hand_results, person_behaviors, w, h)
         
-        # 4. Visualization & Logging
-        self._visualize(frame, people, objects, hands, behaviors)
+        # 5. Visualization & Logging
+        self._visualize(frame, people, objects, hand_results, person_behaviors, behaviors)
         
         for b in behaviors:
             self.events.append({
@@ -38,12 +57,14 @@ class AdvancedVideoPipeline:
             
         return frame, behaviors
 
-    def _visualize(self, frame, people, objects, hands, behaviors):
+    def _visualize(self, frame, people, objects, hands, person_behaviors, behaviors):
         h, w = frame.shape[:2]
         
         # Draw People
         for p in people:
-            self.detector.draw_box(frame, p, f"Person {p.track_id}", (0, 255, 0))
+            behavior_label = person_behaviors.get(p.track_id, "Normal")
+            color = (0, 0, 255) if behavior_label == "Theft" else (0, 255, 0)
+            self.detector.draw_box(frame, p, f"P{p.track_id} [{behavior_label}]", color)
             
             # Draw Trajectory Line
             traj = self.analyzer.hand_trajectories.get(p.track_id)

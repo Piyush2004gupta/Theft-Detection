@@ -21,8 +21,13 @@ class BehaviorAnalyzer:
         self.grab_speed_threshold = 0.05 # change in normalized coords per frame
         self.interaction_dist = 120
 
-    def analyze(self, frame_idx: int, people: List[DetectionResult], objects: List[DetectionResult], hands: List[Dict]):
+    def analyze(self, frame_idx: int, people: List[DetectionResult], objects: List[DetectionResult], hands: List[Dict], person_behaviors: Dict[int, str], width: int, height: int):
         results = []
+        self.w = width
+        self.h = height
+        
+        # 0. Persistence factor for model predictions
+        # If the model says "Theft", boost confidence
         
         # 1. Update Object Registry & Detect Displacement
         for obj in objects:
@@ -60,14 +65,18 @@ class BehaviorAnalyzer:
                         # Analyze Intent
                         speed = self._calculate_hand_speed(p.track_id)
                         is_owner = self.object_owners.get(obj.track_id) == p.track_id
+                        model_says_theft = person_behaviors.get(p.track_id) == "Theft"
                         
-                        if not is_owner and is_displaced:
+                        if (not is_owner and is_displaced) or model_says_theft:
                             # Quick Grab + Displacement by non-owner -> THEFT
+                            conf = self._calculate_confidence(speed, dist)
+                            if model_says_theft: conf = max(conf, 0.85)
+                            
                             results.append({
                                 "type": "THFT",
                                 "person_id": p.track_id,
                                 "object_id": obj.track_id, 
-                                "confidence": self._calculate_confidence(speed, dist),
+                                "confidence": conf,
                                 "description": f"Theft: Person {p.track_id} snatched object {obj.track_id}"
                             })
                         elif not is_owner and self._is_reaching_fast(speed):
@@ -88,9 +97,8 @@ class BehaviorAnalyzer:
         return ((box[0]+box[2])/2, (box[1]+box[3])/2)
 
     def _point_in_box(self, pt, box):
-        # pt is (x, y, z) normalized or pixel. If normalized, scale.
-        # For simplicity, assumed to be pixel-aligned by the tracker
-        return box[0] <= pt[0]*1280 <= box[2] and box[1] <= pt[1]*720 <= box[3]
+        # pt is (x, y, z) normalized. scale by internal self.w/self.h
+        return box[0] <= pt[0]*self.w <= box[2] and box[1] <= pt[1]*self.h <= box[3]
 
     def _find_closest_person(self, obj, people):
         min_d = 9999
@@ -108,7 +116,6 @@ class BehaviorAnalyzer:
         matches = []
         for h in hands:
             # Check if hand wrist is inside or near person bbox
-            wrist = (h["wrist"][0]*1280, h["wrist"][1]*720)
             if self._point_in_box(h["wrist"], person.box):
                 matches.append(h)
         return matches
